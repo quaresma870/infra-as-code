@@ -114,3 +114,26 @@
     - name: Print container status
       ansible.builtin.debug:
         var: ps_result.stdout_lines
+
+    - name: Wait for application health check
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:{{ app_health_port | default(8000) }}/health"
+        status_code: 200
+        timeout: 10
+      register: health
+      retries: 12
+      delay: 5
+      until: health.status == 200
+      changed_when: false
+      ignore_errors: true
+
+    - name: Fail if health check did not pass
+      ansible.builtin.fail:
+        msg: "Application did not become healthy within 60s. Check logs: docker compose logs"
+      when: health.failed
+
+    - name: Health check passed
+      ansible.builtin.debug:
+        msg: "Application is healthy at http://{{ ansible_host }}:{{ app_health_port | default(8000) }}/health"
+      when: not health.failed
+

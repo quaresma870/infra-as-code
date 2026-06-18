@@ -187,6 +187,18 @@ brew install terraform   # macOS
 
 ---
 
+## Changelog
+
+### v1.0.2
+- docs: remote Terraform state backend options documented (Terraform Cloud + S3) — closes #1
+- feat: `ansible/inventory/production/group_vars/vault.yml.example` — Ansible Vault guide — closes #2
+- feat: `terraform/environments/staging/` — staging environment with smaller server (cx11) — closes #3
+- feat: post-deploy health check added to `deploy.yml` — closes #4
+  (waits up to 60s; fails playbook if app doesn't respond)
+- feat: `ansible/playbooks/rollback.yml` — reverts to specified image version — closes #5
+
+---
+
 ## License
 
 MIT

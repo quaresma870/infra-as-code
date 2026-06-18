@@ -1,0 +1,22 @@
+# Ansible Vault — encrypted secrets
+# ─────────────────────────────────────────────────────────────────────────────
+# Create this file encrypted: ansible-vault create group_vars/all/vault.yml
+# Edit:  ansible-vault edit group_vars/all/vault.yml
+# View:  ansible-vault view group_vars/all/vault.yml
+#
+# In CI, set ANSIBLE_VAULT_PASSWORD as a GitHub Secret and add to ansible.cfg:
+#   vault_password_file = .vault_pass
+#
+# Example vault.yml content (encrypted, shown here in plaintext for reference):
+#
+# vault_postgres_password: "your-strong-password-here"
+# vault_redis_password: "your-redis-password-here"
+# vault_grafana_password: "your-grafana-password-here"
+# vault_deploy_ssh_keys:
+#   - "ssh-ed25519 AAAA... your-key"
+#
+# Reference vault vars in group_vars/all.yml:
+#   postgres_password: "{{ vault_postgres_password }}"
+#
+# To encrypt an existing file:
+#   ansible-vault encrypt group_vars/all/vault.yml

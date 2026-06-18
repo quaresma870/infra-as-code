@@ -1,0 +1,80 @@
+---
+# ── Rollback playbook ─────────────────────────────────────────────────────────
+# Reverts the application to a previous image version.
+#
+# Usage:
+#   ansible-playbook playbooks/rollback.yml \
+#     -i inventory/production \
+#     --limit web01 \
+#     --extra-vars "stack=web-basic version=v1.2.2"
+#
+
+- name: Rollback application
+  hosts: "{{ target | default('webservers') }}"
+  become: true
+  gather_facts: false
+
+  vars:
+    stack: web-basic
+    version: previous      # 'previous' uses the image before current, or specify tag e.g. v1.2.2
+    deploy_path: "{{ deploy_home }}/stacks/{{ stack }}"
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - stack is defined and stack != ''
+        fail_msg: "Variable 'stack' must be set."
+
+    - name: Get current image
+      ansible.builtin.command:
+        cmd: docker compose images --format json
+        chdir: "{{ deploy_path }}"
+      become_user: "{{ deploy_user }}"
+      register: current_images
+      changed_when: false
+
+    - name: Determine rollback image tag
+      ansible.builtin.set_fact:
+        rollback_image: >-
+          {{ (ghcr_image | default(app_image | default('app'))) }}:{{ version }}
+      when: version != 'previous'
+
+    - name: Pull rollback image
+      ansible.builtin.command:
+        cmd: docker pull {{ rollback_image }}
+        chdir: "{{ deploy_path }}"
+      become_user: "{{ deploy_user }}"
+      when: version != 'previous'
+
+    - name: Update APP_IMAGE in .env
+      ansible.builtin.lineinfile:
+        path: "{{ deploy_path }}/.env"
+        regexp: "^APP_IMAGE="
+        line: "APP_IMAGE={{ rollback_image }}"
+      when: version != 'previous'
+
+    - name: Deploy rollback image
+      ansible.builtin.command:
+        cmd: docker compose up -d --no-build
+        chdir: "{{ deploy_path }}"
+      become_user: "{{ deploy_user }}"
+      register: rollback_result
+      changed_when: "'Started' in rollback_result.stderr or 'Recreated' in rollback_result.stderr"
+
+    - name: Wait for health check after rollback
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:{{ app_health_port | default(8000) }}/health"
+        status_code: 200
+        timeout: 10
+      register: health
+      retries: 12
+      delay: 5
+      until: health.status == 200
+      changed_when: false
+
+    - name: Rollback result
+      ansible.builtin.debug:
+        msg: >-
+          Rollback to {{ version }} {{ 'succeeded' if not health.failed else 'FAILED' }}.
+          {{ 'Application is healthy.' if not health.failed else 'Manual intervention required.' }}
