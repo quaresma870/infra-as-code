@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars
+hcloud_token   = "your-hetzner-api-token"
+project_name   = "myproject"
+server_type    = "cx11"
+location       = "nbg1"
+timezone       = "Europe/Lisbon"
+ssh_public_key = "ssh-ed25519 AAAA..."

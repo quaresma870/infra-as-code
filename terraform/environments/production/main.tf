@@ -8,10 +8,27 @@ terraform {
     }
   }
 
-  # Uncomment to use Terraform Cloud for remote state:
+  # ── Remote state backend (REQUIRED for team use) ──────────────────────────
+  # Option A: Terraform Cloud (recommended)
   # cloud {
   #   organization = "your-org"
   #   workspaces { name = "infra-production" }
+  # }
+
+  # Option B: S3-compatible (Hetzner Object Storage, AWS S3, etc.)
+  # backend "s3" {
+  #   bucket         = "your-tfstate-bucket"
+  #   key            = "production/terraform.tfstate"
+  #   region         = "eu-west-1"
+  #   encrypt        = true
+  #   # For state locking (AWS only):
+  #   dynamodb_table = "terraform-locks"
+  #   # For Hetzner Object Storage:
+  #   # endpoint = "https://fsn1.your-objectstorage.com"
+  #   # skip_credentials_validation = true
+  #   # skip_metadata_api_check     = true
+  #   # skip_region_validation      = true
+  #   # force_path_style            = true
   # }
 }
 
