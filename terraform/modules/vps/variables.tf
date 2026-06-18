@@ -10,9 +10,9 @@ variable "environment" {
 }
 
 variable "server_type" {
-  description = "Hetzner server type (e.g. cx22, cx32, cx42)"
+  description = "Hetzner server type (e.g. cx22=2vCPU/4GB, cx32=4vCPU/8GB, cx42=8vCPU/16GB)"
   type        = string
-  default     = "cx22"   # 2 vCPU, 4GB RAM — ~4€/month
+  default     = "cx22"
 }
 
 variable "image" {
@@ -22,7 +22,7 @@ variable "image" {
 }
 
 variable "location" {
-  description = "Datacenter location (nbg1=Nuremberg, fsn1=Falkenstein, hel1=Helsinki)"
+  description = "Datacenter: nbg1=Nuremberg, fsn1=Falkenstein, hel1=Helsinki"
   type        = string
   default     = "nbg1"
 }
@@ -39,13 +39,13 @@ variable "ssh_port" {
 }
 
 variable "ssh_allowed_ips" {
-  description = "IPs allowed to SSH. Use ['0.0.0.0/0'] to allow all (not recommended)"
+  description = "IPs allowed to SSH. Restrict to your own IP in production."
   type        = list(string)
   default     = ["0.0.0.0/0", "::/0"]
 }
 
 variable "monitoring_ips" {
-  description = "IPs allowed to scrape Node Exporter (port 9100)"
+  description = "IPs allowed to scrape Node Exporter on port 9100"
   type        = list(string)
   default     = []
 }
@@ -69,7 +69,7 @@ variable "enable_floating_ip" {
 }
 
 variable "extra_volume_gb" {
-  description = "Size of extra data volume in GB. 0 = no volume"
+  description = "Size of extra data volume in GB. 0 = no volume."
   type        = number
   default     = 0
 }

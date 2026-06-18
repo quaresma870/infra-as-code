@@ -1,7 +1,3 @@
-# ── VPS module ────────────────────────────────────────────────────────────────
-# Generic VPS module — implemented for Hetzner Cloud.
-# Swap the provider block to adapt to DigitalOcean, Linode, OVH, etc.
-
 terraform {
   required_providers {
     hcloud = {
@@ -21,46 +17,41 @@ resource "hcloud_ssh_key" "deploy" {
 resource "hcloud_firewall" "server" {
   name = "${var.name}-firewall"
 
-  # SSH
   rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = tostring(var.ssh_port)
-    source_ips = var.ssh_allowed_ips
     description = "SSH access"
+    direction   = "in"
+    protocol    = "tcp"
+    port        = tostring(var.ssh_port)
+    source_ips  = var.ssh_allowed_ips
   }
 
-  # HTTP
   rule {
+    description = "HTTP"
     direction   = "in"
     protocol    = "tcp"
     port        = "80"
     source_ips  = ["0.0.0.0/0", "::/0"]
-    description = "HTTP"
   }
 
-  # HTTPS
   rule {
+    description = "HTTPS"
     direction   = "in"
     protocol    = "tcp"
     port        = "443"
     source_ips  = ["0.0.0.0/0", "::/0"]
-    description = "HTTPS"
   }
 
-  # Node Exporter (monitoring subnet only)
   dynamic "rule" {
     for_each = var.monitoring_ips
     content {
+      description = "Node Exporter from monitoring"
       direction   = "in"
       protocol    = "tcp"
       port        = "9100"
       source_ips  = [rule.value]
-      description = "Node Exporter from monitoring"
     }
   }
 
-  # ICMP (ping)
   rule {
     direction  = "in"
     protocol   = "icmp"
@@ -70,12 +61,11 @@ resource "hcloud_firewall" "server" {
 
 # ── Server ────────────────────────────────────────────────────────────────────
 resource "hcloud_server" "main" {
-  name        = var.name
-  server_type = var.server_type
-  image       = var.image
-  location    = var.location
-  ssh_keys    = [hcloud_ssh_key.deploy.id]
-
+  name         = var.name
+  server_type  = var.server_type
+  image        = var.image
+  location     = var.location
+  ssh_keys     = [hcloud_ssh_key.deploy.id]
   firewall_ids = [hcloud_firewall.server.id]
 
   labels = merge(var.labels, {
@@ -83,7 +73,6 @@ resource "hcloud_server" "main" {
     environment = var.environment
   })
 
-  # User data — cloud-init for initial setup
   user_data = templatefile("${path.module}/templates/cloud-init.yml.tpl", {
     hostname    = var.name
     deploy_user = var.deploy_user
@@ -111,7 +100,7 @@ resource "hcloud_floating_ip_assignment" "main" {
   server_id      = hcloud_server.main.id
 }
 
-# ── Volume (optional extra disk) ──────────────────────────────────────────────
+# ── Extra Volume (optional) ───────────────────────────────────────────────────
 resource "hcloud_volume" "data" {
   count    = var.extra_volume_gb > 0 ? 1 : 0
   name     = "${var.name}-data"

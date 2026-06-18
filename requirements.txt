@@ -1,0 +1,11 @@
+# Ansible — use ansible-core 2.17+ (supported, actively maintained)
+ansible-core>=2.17.0
+ansible>=10.0.0
+
+# Linting and validation
+ansible-lint>=24.9.0
+yamllint>=1.35.0
+
+# Required Ansible collections (installed via ansible-galaxy in CI)
+# community.general
+# ansible.posix
