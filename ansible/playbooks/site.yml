@@ -48,6 +48,9 @@
     - role: monitoring
       tags: [monitoring]
 
+    - role: backup
+      tags: [backup]
+
   post_tasks:
     - name: Verify all services are running
       ansible.builtin.systemd:

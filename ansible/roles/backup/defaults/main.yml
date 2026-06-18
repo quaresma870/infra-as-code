@@ -1,0 +1,33 @@
+---
+# ── Backup role defaults ──────────────────────────────────────────────────────
+
+# Where to install backup scripts
+backup_script_dir: "{{ deploy_home }}/scripts/backup"
+
+# Where backups are stored locally before optional offsite sync
+backup_dest_dir: "{{ deploy_home }}/backups"
+
+# Use the backup.sh script from quaresma870/compose-stacks
+backup_use_compose_stacks_script: true
+backup_compose_stacks_repo: "https://github.com/quaresma870/compose-stacks.git"
+
+# Stacks to back up — list of {name, path} where path is the deployed stack dir
+backup_stacks:
+  - name: web-basic
+    path: "{{ deploy_home }}/stacks/web-basic"
+
+# Cron schedule — daily at 02:00 by default
+backup_cron_minute: "0"
+backup_cron_hour: "2"
+
+# Retention
+backup_keep_daily: 7
+backup_keep_weekly: 4
+
+# Offsite sync (optional) — disabled by default
+backup_offsite_enabled: false
+backup_offsite_host: ""
+backup_offsite_user: backup
+backup_offsite_path: "/backups/{{ inventory_hostname }}"
+backup_sync_cron_minute: "30"
+backup_sync_cron_hour: "3"

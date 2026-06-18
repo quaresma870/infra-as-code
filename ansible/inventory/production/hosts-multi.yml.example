@@ -1,0 +1,44 @@
+---
+# ── Multi-server inventory example ───────────────────────────────────────────
+# Load balancer + 2 app servers, sharing a Redis session store.
+# Copy to hosts.yml and adjust IPs to scale beyond a single server.
+
+all:
+  children:
+    loadbalancer:
+      hosts:
+        lb01:
+          ansible_host: 1.2.3.4          # replace with your LB IP
+          ansible_port: 22
+          server_name: lb01.example.com
+
+    appservers:
+      hosts:
+        app01:
+          ansible_host: 1.2.3.5          # replace with app01 IP
+          ansible_port: 22
+          server_name: app01.example.com
+        app02:
+          ansible_host: 1.2.3.6          # replace with app02 IP
+          ansible_port: 22
+          server_name: app02.example.com
+      vars:
+        env: production
+        # Shared session store — all app servers point to the same Redis
+        redis_host: "{{ hostvars['redis01']['ansible_host'] }}"
+
+    cache:
+      hosts:
+        redis01:
+          ansible_host: 1.2.3.7          # replace with Redis host IP
+          ansible_port: 22
+
+    # Combine all webservers (LB + app) for roles that apply to both
+    webservers:
+      children:
+        loadbalancer:
+        appservers:
+
+  vars:
+    ansible_user: deploy
+    ansible_python_interpreter: /usr/bin/python3

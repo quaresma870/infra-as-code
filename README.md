@@ -73,6 +73,8 @@ ansible-playbook playbooks/deploy.yml \
 | `nginx` | nginx + rate limiting + security headers + vhost templates |
 | `ssl` | Certbot + Let's Encrypt + auto-renewal cron |
 | `monitoring` | Prometheus Node Exporter (integrates with compose-stacks/monitoring) |
+| `backup` | Automated cron backups via compose-stacks/backup.sh, retention + offsite sync |
+| `haproxy` | Load balancer with health-checked round-robin backend (multi-server setups) |
 
 ### Tags
 
@@ -175,6 +177,15 @@ brew install terraform   # macOS
 ---
 
 ## Changelog
+
+### v1.0.3
+- feat: `backup` Ansible role — automated cron backups integrating `compose-stacks/backup.sh` — closes #6
+  - Daily backup at 02:00, retention 7 daily / 4 weekly, optional offsite rsync
+  - Added to `site.yml` with `--tags backup`
+- feat: multi-server inventory example (load balancer + 2 app servers + Redis cache) — closes #7
+  - `inventory/production/hosts-multi.yml.example`
+  - New `haproxy` role with health-checked round-robin backend
+  - New `playbooks/site-multi.yml` — provisions LB + N app servers + shared Redis
 
 ### v1.0.2
 - docs: remote Terraform state backend options documented (Terraform Cloud + S3) — closes #1

@@ -1,0 +1,48 @@
+# Managed by Ansible
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    maxconn {{ haproxy_maxconn | default(4096) }}
+    user haproxy
+    group haproxy
+    daemon
+
+defaults
+    log     global
+    mode    http
+    option  httplog
+    option  dontlognull
+    timeout connect 5s
+    timeout client  30s
+    timeout server  30s
+    errorfile 503 /etc/haproxy/errors/503.http
+
+{% if haproxy_stats_enabled | default(true) %}
+listen stats
+    bind *:{{ haproxy_stats_port | default(8404) }}
+    stats enable
+    stats uri /stats
+    stats refresh 10s
+    stats auth {{ haproxy_stats_user | default('admin') }}:{{ haproxy_stats_password }}
+{% endif %}
+
+frontend http_front
+    bind *:80
+    {% if haproxy_ssl_enabled | default(false) %}
+    redirect scheme https code 301 if !{ ssl_fc }
+    {% endif %}
+    default_backend app_servers
+
+{% if haproxy_ssl_enabled | default(false) %}
+frontend https_front
+    bind *:443 ssl crt /etc/haproxy/certs/{{ haproxy_ssl_domain }}.pem
+    default_backend app_servers
+{% endif %}
+
+backend app_servers
+    balance roundrobin
+    option httpchk GET {{ haproxy_health_check_path | default('/health') }}
+    http-check expect status 200
+{% for server in haproxy_backend_servers %}
+    server {{ server.name }} {{ server.address }}:{{ server.port | default(8000) }} check inter 5s fall 3 rise 2
+{% endfor %}
