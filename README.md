@@ -176,26 +176,18 @@ brew install terraform   # macOS
 
 ## Changelog
 
-### v1.0.1
-- fix: add `requirements.txt` with `ansible-core>=2.17`, `ansible-lint>=24.9.0`, `yamllint>=1.35.0`
-- fix: `setup-python` cache now points to `requirements.txt` via `cache-dependency-path`
-- fix: Ansible collections (`community.general`, `ansible.posix`) installed in CI before linting
-- fix: `ansible-lint --profile=basic` for compatibility with recent versions
-- fix: Terraform `.tf` files rewritten with strict `terraform fmt` compliant alignment
-- fix: `terraform init` uses `-input=false` flag
-- chore: `main` branch created and set as default
-
----
-
-## Changelog
-
 ### v1.0.2
 - docs: remote Terraform state backend options documented (Terraform Cloud + S3) — closes #1
 - feat: `ansible/inventory/production/group_vars/vault.yml.example` — Ansible Vault guide — closes #2
-- feat: `terraform/environments/staging/` — staging environment with smaller server (cx11) — closes #3
-- feat: post-deploy health check added to `deploy.yml` — closes #4
-  (waits up to 60s; fails playbook if app doesn't respond)
-- feat: `ansible/playbooks/rollback.yml` — reverts to specified image version — closes #5
+- feat: `terraform/environments/staging/` — staging environment (cx11, separate state) — closes #3
+- feat: post-deploy health check in `deploy.yml` (60s timeout, fails playbook) — closes #4
+- feat: `ansible/playbooks/rollback.yml` — revert to specified image version — closes #5
+
+### v1.0.1
+- fix: `requirements.txt` with ansible-core>=2.17, ansible-lint>=24.9.0, yamllint>=1.35.0
+- fix: Ansible collections installed before lint in CI
+- fix: Terraform `.tf` files rewritten with strict `terraform fmt` alignment
+- chore: Ansible upgraded to ansible-core>=2.17 (LTS)
 
 ---
 
