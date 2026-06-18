@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Managed by Ansible — runs backup.sh for each configured stack, then cleans up.
+
+set -uo pipefail
+
+SCRIPT_DIR="{{ backup_script_dir }}"
+DEST_DIR="{{ backup_dest_dir }}"
+
+echo "===== Backup run: $(date -Iseconds) ====="
+
+{% for stack in backup_stacks %}
+echo "--- Backing up {{ stack.name }} ---"
+"$SCRIPT_DIR/backup.sh" "{{ stack.path }}" "$DEST_DIR/{{ stack.name }}" || \
+  echo "WARNING: backup of {{ stack.name }} failed"
+{% endfor %}
+
+echo "--- Running cleanup ---"
+"$SCRIPT_DIR/cleanup.sh"
+
+echo "===== Backup run complete: $(date -Iseconds) ====="

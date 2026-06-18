@@ -1,0 +1,33 @@
+---
+# ── HAProxy role — load balancer for multi-server setups ─────────────────────
+
+- name: Install HAProxy
+  ansible.builtin.apt:
+    name: haproxy
+    state: present
+  notify: Restart HAProxy
+
+- name: Deploy HAProxy configuration
+  ansible.builtin.template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: "0644"
+    validate: haproxy -c -f %s
+  notify: Restart HAProxy
+
+- name: Enable and start HAProxy
+  ansible.builtin.systemd:
+    name: haproxy
+    state: started
+    enabled: true
+
+- name: Allow HAProxy stats port in firewall
+  community.general.ufw:
+    rule: allow
+    port: "{{ haproxy_stats_port | string }}"
+    proto: tcp
+    src: "{{ haproxy_stats_allowed_ips | default('any') }}"
+    comment: "HAProxy stats page"
+  when: haproxy_stats_enabled | bool
