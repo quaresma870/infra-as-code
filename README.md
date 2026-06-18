@@ -1,7 +1,7 @@
 # 🏗️ Infra as Code
 
 [![CI](https://github.com/quaresma870/infra-as-code/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/quaresma870/infra-as-code/actions/workflows/ci.yml)
-![Ansible](https://img.shields.io/badge/Ansible-2.16%2B-EE0000?logo=ansible&logoColor=white)
+![Ansible](https://img.shields.io/badge/Ansible--core-2.17%2B-EE0000?logo=ansible&logoColor=white)
 ![Terraform](https://img.shields.io/badge/Terraform-1.10%2B-7B42BC?logo=terraform&logoColor=white)
 ![Node.js](https://img.shields.io/badge/GitHub%20Actions-Node.js%2024-brightgreen?logo=nodedotjs&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -171,6 +171,19 @@ ansible-galaxy collection install community.general ansible.posix
 brew install terraform   # macOS
 # or download from https://developer.hashicorp.com/terraform/downloads
 ```
+
+---
+
+## Changelog
+
+### v1.0.1
+- fix: add `requirements.txt` with `ansible-core>=2.17`, `ansible-lint>=24.9.0`, `yamllint>=1.35.0`
+- fix: `setup-python` cache now points to `requirements.txt` via `cache-dependency-path`
+- fix: Ansible collections (`community.general`, `ansible.posix`) installed in CI before linting
+- fix: `ansible-lint --profile=basic` for compatibility with recent versions
+- fix: Terraform `.tf` files rewritten with strict `terraform fmt` compliant alignment
+- fix: `terraform init` uses `-input=false` flag
+- chore: `main` branch created and set as default
 
 ---
 
