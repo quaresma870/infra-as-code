@@ -1,0 +1,4 @@
+---
+node_exporter_version: "1.8.2"
+node_exporter_port: 9100
+monitoring_subnet: any

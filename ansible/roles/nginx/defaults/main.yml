@@ -1,0 +1,5 @@
+---
+nginx_worker_processes: auto
+nginx_worker_connections: 1024
+nginx_client_max_body_size: 20M
+nginx_vhosts: []

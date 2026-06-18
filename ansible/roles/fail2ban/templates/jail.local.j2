@@ -1,0 +1,37 @@
+# Managed by Ansible
+[DEFAULT]
+ignoreip    = {{ fail2ban_ignoreip | join(' ') }}
+maxretry    = {{ fail2ban_maxretry }}
+bantime     = {{ fail2ban_bantime }}
+findtime    = {{ fail2ban_findtime }}
+banaction   = ufw
+backend     = systemd
+
+[sshd]
+enabled     = true
+port        = {{ ssh_port }}
+filter      = sshd
+maxretry    = {{ fail2ban_maxretry }}
+bantime     = {{ fail2ban_bantime }}
+
+[nginx-http-auth]
+enabled     = true
+filter      = nginx-http-auth
+port        = http,https
+logpath     = /var/log/nginx/error.log
+maxretry    = 5
+
+[nginx-req-limit]
+enabled     = true
+filter      = nginx-req-limit
+port        = http,https
+logpath     = /var/log/nginx/error.log
+maxretry    = 10
+bantime     = 600
+
+[nginx-botsearch]
+enabled     = true
+filter      = nginx-botsearch
+port        = http,https
+logpath     = /var/log/nginx/access.log
+maxretry    = 2

@@ -1,0 +1,4 @@
+---
+# Override these in group_vars or host_vars
+deploy_ssh_keys: []
+swap_size_mb: 2048

@@ -1,0 +1,116 @@
+---
+# ── Deploy playbook ───────────────────────────────────────────────────────────
+# Deploys or updates a compose-stacks application on the target server.
+#
+# Usage:
+#   ansible-playbook playbooks/deploy.yml \
+#     -i inventory/production \
+#     --limit web01 \
+#     --extra-vars "stack=web-basic app_image=ghcr.io/myuser/myapp:v1.2.3"
+#
+
+- name: Deploy application
+  hosts: "{{ target | default('webservers') }}"
+  become: true
+  gather_facts: false
+
+  vars:
+    stack: web-basic
+    app_image: ""
+    deploy_path: "{{ deploy_home }}/stacks/{{ stack }}"
+    stack_repo: "https://github.com/quaresma870/compose-stacks.git"
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - stack is defined and stack != ''
+        fail_msg: "Variable 'stack' must be set. E.g. --extra-vars 'stack=web-basic'"
+
+    - name: Ensure stack directory exists
+      ansible.builtin.file:
+        path: "{{ deploy_path }}"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0750"
+
+    - name: Clone or update compose-stacks repo
+      ansible.builtin.git:
+        repo: "{{ stack_repo }}"
+        dest: "{{ deploy_home }}/compose-stacks"
+        version: main
+        update: true
+      become_user: "{{ deploy_user }}"
+
+    - name: Copy stack files to deploy path
+      ansible.builtin.copy:
+        src: "{{ deploy_home }}/compose-stacks/stacks/{{ stack }}/"
+        dest: "{{ deploy_path }}/"
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        remote_src: true
+
+    - name: Check if .env exists
+      ansible.builtin.stat:
+        path: "{{ deploy_path }}/.env"
+      register: env_file
+
+    - name: Create .env from .env.example if not present
+      ansible.builtin.copy:
+        src: "{{ deploy_path }}/.env.example"
+        dest: "{{ deploy_path }}/.env"
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0600"
+        remote_src: true
+      when: not env_file.stat.exists
+
+    - name: Update APP_IMAGE in .env
+      ansible.builtin.lineinfile:
+        path: "{{ deploy_path }}/.env"
+        regexp: "^APP_IMAGE="
+        line: "APP_IMAGE={{ app_image }}"
+      when: app_image != ''
+
+    - name: Login to GHCR
+      ansible.builtin.command:
+        cmd: docker login ghcr.io -u {{ ghcr_user }} -p {{ ghcr_token }}
+      become_user: "{{ deploy_user }}"
+      no_log: true
+      when: ghcr_user is defined and ghcr_token is defined
+      changed_when: false
+
+    - name: Pull latest images
+      ansible.builtin.command:
+        cmd: docker compose pull
+        chdir: "{{ deploy_path }}"
+      become_user: "{{ deploy_user }}"
+      register: pull_result
+      changed_when: "'Pull complete' in pull_result.stdout or 'Downloaded' in pull_result.stdout"
+
+    - name: Deploy stack (up -d)
+      ansible.builtin.command:
+        cmd: docker compose up -d --remove-orphans
+        chdir: "{{ deploy_path }}"
+      become_user: "{{ deploy_user }}"
+      register: up_result
+      changed_when: "'Started' in up_result.stderr or 'Recreated' in up_result.stderr"
+
+    - name: Clean up old images
+      ansible.builtin.command:
+        cmd: docker image prune -f
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
+    - name: Show running containers
+      ansible.builtin.command:
+        cmd: docker compose ps
+        chdir: "{{ deploy_path }}"
+      become_user: "{{ deploy_user }}"
+      register: ps_result
+      changed_when: false
+
+    - name: Print container status
+      ansible.builtin.debug:
+        var: ps_result.stdout_lines

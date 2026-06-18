@@ -1,0 +1,53 @@
+# Managed by Ansible — {{ item.name }}
+{% if item.redirect_http | default(true) %}
+server {
+    listen 80;
+    server_name {{ item.domains | join(' ') }};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+{% endif %}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name {{ item.domains | join(' ') }};
+
+{% if item.ssl | default(true) %}
+    ssl_certificate     /etc/letsencrypt/live/{{ item.domains[0] }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ item.domains[0] }}/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+{% endif %}
+
+    root {{ item.root | default('/var/www/' + item.name) }};
+    index index.html;
+
+{% if item.proxy_pass is defined %}
+    location {{ item.proxy_location | default('/') }} {
+        proxy_pass         {{ item.proxy_pass }};
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout {{ item.proxy_timeout | default('60s') }};
+    }
+{% else %}
+    location / {
+        try_files $uri $uri/ =404;
+    }
+{% endif %}
+
+    access_log /var/log/nginx/{{ item.name }}_access.log main;
+    error_log  /var/log/nginx/{{ item.name }}_error.log warn;
+}

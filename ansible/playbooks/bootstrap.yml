@@ -1,0 +1,99 @@
+---
+# ── Bootstrap playbook ────────────────────────────────────────────────────────
+# Run this ONCE on a brand new server as root before any other playbook.
+# After this runs, all subsequent playbooks use the deploy user via SSH key.
+#
+# Usage:
+#   ansible-playbook playbooks/bootstrap.yml \
+#     -i inventory/production \
+#     --user root \
+#     --ask-pass \
+#     --limit web01
+#
+- name: Bootstrap fresh server
+  hosts: "{{ target | default('all') }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    # Pass your public key on the CLI or override in group_vars
+    # --extra-vars "bootstrap_ssh_key='ssh-ed25519 AAAA...'"
+    bootstrap_ssh_key: "{{ lookup('file', '~/.ssh/deploy_key.pub') }}"
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install sudo and Python
+      ansible.builtin.apt:
+        name:
+          - sudo
+          - python3
+          - python3-apt
+        state: present
+
+    - name: Create deploy group
+      ansible.builtin.group:
+        name: "{{ deploy_group }}"
+        state: present
+
+    - name: Create deploy user
+      ansible.builtin.user:
+        name: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        shell: /bin/bash
+        home: "/home/{{ deploy_user }}"
+        create_home: true
+        state: present
+
+    - name: Add deploy user to sudoers (passwordless)
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/{{ deploy_user }}
+        content: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL\n"
+        mode: "0440"
+        validate: visudo -cf %s
+
+    - name: Create .ssh directory
+      ansible.builtin.file:
+        path: "/home/{{ deploy_user }}/.ssh"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0700"
+
+    - name: Add SSH public key
+      ansible.posix.authorized_key:
+        user: "{{ deploy_user }}"
+        key: "{{ bootstrap_ssh_key }}"
+        state: present
+
+    - name: Disable root SSH login
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^PermitRootLogin"
+        line: "PermitRootLogin no"
+        state: present
+      notify: Restart SSH
+
+    - name: Disable password authentication
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^PasswordAuthentication"
+        line: "PasswordAuthentication no"
+        state: present
+      notify: Restart SSH
+
+  handlers:
+    - name: Restart SSH
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted
+
+  post_tasks:
+    - name: Bootstrap complete
+      ansible.builtin.debug:
+        msg: >
+          Bootstrap complete for {{ inventory_hostname }}.
+          You can now run: ansible-playbook playbooks/site.yml -i inventory/production --limit {{ inventory_hostname }}

@@ -1,0 +1,54 @@
+---
+# ── Firewall role — UFW configuration ─────────────────────────────────────────
+
+- name: Install UFW
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+
+- name: Reset UFW to defaults
+  community.general.ufw:
+    state: reset
+
+- name: Set UFW default incoming policy
+  community.general.ufw:
+    default: "{{ ufw_default_incoming }}"
+    direction: incoming
+
+- name: Set UFW default outgoing policy
+  community.general.ufw:
+    default: "{{ ufw_default_outgoing }}"
+    direction: outgoing
+
+- name: Apply UFW rules
+  community.general.ufw:
+    rule: "{{ item.rule }}"
+    port: "{{ item.port | string }}"
+    proto: "{{ item.proto | default('tcp') }}"
+    comment: "{{ item.comment | default('') }}"
+  loop: "{{ ufw_rules }}"
+
+- name: Allow additional ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port | string }}"
+    proto: "{{ item.proto | default('tcp') }}"
+    comment: "{{ item.comment | default('custom rule') }}"
+  loop: "{{ ufw_extra_rules | default([]) }}"
+
+- name: Enable UFW logging
+  community.general.ufw:
+    logging: "on"
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+
+- name: Show UFW status
+  ansible.builtin.command: ufw status verbose
+  register: ufw_status
+  changed_when: false
+
+- name: Print UFW status
+  ansible.builtin.debug:
+    var: ufw_status.stdout_lines

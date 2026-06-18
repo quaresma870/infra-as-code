@@ -1,0 +1,141 @@
+---
+# ── Common role — base system setup ──────────────────────────────────────────
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Upgrade all packages
+  ansible.builtin.apt:
+    upgrade: safe
+  notify: Reboot if required
+
+- name: Install common packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Set locale
+  ansible.builtin.locale_gen:
+    name: "{{ locale }}"
+    state: present
+
+- name: Create deploy group
+  ansible.builtin.group:
+    name: "{{ deploy_group }}"
+    state: present
+
+- name: Create deploy user
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    shell: "{{ deploy_shell }}"
+    home: "{{ deploy_home }}"
+    create_home: true
+    state: present
+
+- name: Add deploy user to sudoers (passwordless)
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/{{ deploy_user }}
+    content: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    mode: "0440"
+    validate: visudo -cf %s
+
+- name: Create .ssh directory for deploy user
+  ansible.builtin.file:
+    path: "{{ deploy_home }}/.ssh"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0700"
+
+- name: Add authorized keys for deploy user
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ item }}"
+    state: present
+  loop: "{{ deploy_ssh_keys | default([]) }}"
+  when: deploy_ssh_keys is defined
+
+- name: Harden SSH configuration
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+    validate: sshd -t -f %s
+  notify: Restart SSH
+
+- name: Configure swap
+  when: swap_size_mb | int > 0
+  block:
+    - name: Check if swap file exists
+      ansible.builtin.stat:
+        path: /swapfile
+      register: swap_file
+
+    - name: Create swap file
+      ansible.builtin.command:
+        cmd: fallocate -l {{ swap_size_mb }}M /swapfile
+        creates: /swapfile
+      when: not swap_file.stat.exists
+
+    - name: Set swap file permissions
+      ansible.builtin.file:
+        path: /swapfile
+        mode: "0600"
+
+    - name: Format swap file
+      ansible.builtin.command:
+        cmd: mkswap /swapfile
+      when: not swap_file.stat.exists
+
+    - name: Enable swap
+      ansible.builtin.command:
+        cmd: swapon /swapfile
+      when: not swap_file.stat.exists
+
+    - name: Add swap to fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: "/swapfile none swap sw 0 0"
+        state: present
+
+- name: Disable unused services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+    - snapd
+    - snapd.socket
+  failed_when: false
+
+- name: Remove unused packages
+  ansible.builtin.apt:
+    name:
+      - snapd
+      - ufw   # managed by firewall role
+    state: absent
+    purge: true
+  failed_when: false
+
+- name: Set sysctl hardening params
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: true
+  loop:
+    - { key: net.ipv4.tcp_syncookies,        value: "1" }
+    - { key: net.ipv4.conf.all.rp_filter,    value: "1" }
+    - { key: net.ipv4.conf.all.accept_redirects, value: "0" }
+    - { key: net.ipv4.conf.all.send_redirects,   value: "0" }
+    - { key: kernel.dmesg_restrict,          value: "1" }
+    - { key: fs.suid_dumpable,               value: "0" }

@@ -1,0 +1,4 @@
+---
+docker_users:
+  - deploy
+docker_edition: ce

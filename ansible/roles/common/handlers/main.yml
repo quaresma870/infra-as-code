@@ -1,0 +1,10 @@
+---
+- name: Restart SSH
+  ansible.builtin.systemd:
+    name: ssh
+    state: restarted
+
+- name: Reboot if required
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+  when: ansible_reboot_pending | default(false)

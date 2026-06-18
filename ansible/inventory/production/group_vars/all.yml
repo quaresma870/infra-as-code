@@ -1,0 +1,75 @@
+---
+# ── Global variables ──────────────────────────────────────────────────────────
+
+# System
+timezone: Europe/Lisbon
+locale: en_US.UTF-8
+
+# Deploy user
+deploy_user: deploy
+deploy_group: deploy
+deploy_home: /home/deploy
+deploy_shell: /bin/bash
+
+# SSH hardening
+ssh_port: 22
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_allowed_users: deploy
+
+# Packages to install on all servers
+common_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - tmux
+  - unzip
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - python3-pip
+  - python3-apt
+  - fail2ban
+  - ufw
+  - logrotate
+  - ntp
+
+# Firewall defaults
+ufw_default_incoming: deny
+ufw_default_outgoing: allow
+ufw_rules:
+  - { port: "{{ ssh_port }}", proto: tcp, rule: allow, comment: "SSH" }
+  - { port: 80,  proto: tcp, rule: allow, comment: "HTTP" }
+  - { port: 443, proto: tcp, rule: allow, comment: "HTTPS" }
+
+# Fail2ban
+fail2ban_maxretry: 5
+fail2ban_bantime: 3600
+fail2ban_findtime: 600
+fail2ban_ignoreip:
+  - 127.0.0.1/8
+  - ::1
+
+# Swap (set 0 to disable)
+swap_size_mb: 2048
+
+# Docker
+docker_edition: ce
+docker_compose_version: v2.29.1
+docker_users:
+  - "{{ deploy_user }}"
+
+# Nginx
+nginx_worker_processes: auto
+nginx_worker_connections: 1024
+
+# SSL / Certbot
+certbot_email: admin@example.com    # override in host_vars
+certbot_domains: []                 # override per host
+certbot_renew_cron: "0 3 * * 1"   # every Monday at 03:00
+
+# Node Exporter (monitoring)
+node_exporter_version: "1.8.2"
+node_exporter_port: 9100

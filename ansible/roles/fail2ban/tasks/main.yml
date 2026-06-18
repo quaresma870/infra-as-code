@@ -1,0 +1,32 @@
+---
+# ── Fail2ban role ─────────────────────────────────────────────────────────────
+
+- name: Install fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+
+- name: Deploy fail2ban local config
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart fail2ban
+
+- name: Deploy fail2ban nginx filter (if nginx present)
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/filter.d/nginx-req-limit.conf
+    content: |
+      [Definition]
+      failregex = limiting requests, excess:.* by zone .* client: <HOST>
+      ignoreregex =
+    mode: "0644"
+  notify: Restart fail2ban
+
+- name: Enable and start fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: started
+    enabled: true

@@ -1,0 +1,53 @@
+---
+# ── SSL role — Certbot + Let's Encrypt ───────────────────────────────────────
+
+- name: Install certbot and nginx plugin
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: present
+
+- name: Create webroot directory for ACME challenges
+  ansible.builtin.file:
+    path: /var/www/certbot
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+
+- name: Obtain SSL certificate
+  ansible.builtin.command: >
+    certbot certonly
+    --webroot
+    --webroot-path /var/www/certbot
+    --email {{ certbot_email }}
+    --agree-tos
+    --no-eff-email
+    --non-interactive
+    {% for domain in certbot_domains %}-d {{ domain }} {% endfor %}
+  args:
+    creates: /etc/letsencrypt/live/{{ certbot_domains[0] }}/fullchain.pem
+  when: certbot_domains | length > 0
+  notify: Reload nginx
+
+- name: Set up certbot auto-renewal cron
+  ansible.builtin.cron:
+    name: certbot-renew
+    minute: "0"
+    hour: "3"
+    weekday: "1"
+    job: certbot renew --quiet --post-hook "systemctl reload nginx"
+    user: root
+    state: present
+
+- name: Verify certificate exists
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ certbot_domains[0] }}/fullchain.pem
+  register: cert_stat
+  when: certbot_domains | length > 0
+
+- name: Show certificate status
+  ansible.builtin.debug:
+    msg: "Certificate for {{ certbot_domains[0] }}: {{ 'found' if cert_stat.stat.exists else 'NOT found' }}"
+  when: certbot_domains | length > 0

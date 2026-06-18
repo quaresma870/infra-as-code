@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and fill in your values
+# Never commit terraform.tfvars — it's in .gitignore
+
+hcloud_token    = "your-hetzner-api-token"
+project_name    = "myproject"
+domain          = "example.com"
+server_type     = "cx22"         # 2 vCPU, 4GB RAM — ~4€/month
+location        = "nbg1"         # Nuremberg, Germany
+timezone        = "Europe/Lisbon"
+ssh_public_key  = "ssh-ed25519 AAAA... your-deploy-key"
+ssh_port        = 22
+ssh_allowed_ips = ["0.0.0.0/0", "::/0"]   # restrict to your IP for production
+monitoring_ips  = []
+enable_floating_ip = false

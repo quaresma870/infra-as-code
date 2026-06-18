@@ -1,0 +1,63 @@
+---
+# ── Nginx role ────────────────────────────────────────────────────────────────
+
+- name: Install nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+  notify: Start nginx
+
+- name: Deploy nginx.conf
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: nginx -t -c %s
+  notify: Reload nginx
+
+- name: Remove default nginx site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload nginx
+
+- name: Create sites-available directory
+  ansible.builtin.file:
+    path: /etc/nginx/sites-available
+    state: directory
+    mode: "0755"
+
+- name: Deploy virtual host configs
+  ansible.builtin.template:
+    src: vhost.conf.j2
+    dest: /etc/nginx/sites-available/{{ item.name }}.conf
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ nginx_vhosts | default([]) }}"
+  notify: Reload nginx
+
+- name: Enable virtual hosts
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/{{ item.name }}.conf
+    dest: /etc/nginx/sites-enabled/{{ item.name }}.conf
+    state: link
+  loop: "{{ nginx_vhosts | default([]) }}"
+  notify: Reload nginx
+
+- name: Create web root directories
+  ansible.builtin.file:
+    path: "{{ item.root | default('/var/www/' + item.name) }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: www-data
+    mode: "0755"
+  loop: "{{ nginx_vhosts | default([]) }}"
+
+- name: Enable and start nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: true

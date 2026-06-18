@@ -1,0 +1,26 @@
+# Terraform
+*.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfplan
+
+# Ansible
+*.retry
+ansible/inventory/production/group_vars/vault.yml
+ansible/inventory/staging/group_vars/vault.yml
+.vault_pass
+
+# SSH keys
+*.pem
+*.key
+id_rsa
+id_ed25519
+deploy_key
+
+# General
+.env
+.DS_Store
+__pycache__/
+*.pyc

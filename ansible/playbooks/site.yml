@@ -1,0 +1,70 @@
+---
+# ── Full server setup playbook ────────────────────────────────────────────────
+# Applies all roles to configure a production-ready server.
+#
+# Usage:
+#   ansible-playbook playbooks/site.yml -i inventory/production
+#   ansible-playbook playbooks/site.yml -i inventory/production --limit web01
+#   ansible-playbook playbooks/site.yml -i inventory/production --tags firewall
+#   ansible-playbook playbooks/site.yml -i inventory/production --check  # dry run
+#
+
+- name: Configure web servers
+  hosts: webservers
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Show target info
+      ansible.builtin.debug:
+        msg: >
+          Configuring {{ inventory_hostname }} ({{ ansible_distribution }} {{ ansible_distribution_version }})
+          — env: {{ env | default('unknown') }}
+
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: apt
+
+  roles:
+    - role: common
+      tags: [common, base]
+
+    - role: firewall
+      tags: [firewall, security]
+
+    - role: fail2ban
+      tags: [fail2ban, security]
+
+    - role: docker
+      tags: [docker]
+
+    - role: nginx
+      tags: [nginx, web]
+
+    - role: ssl
+      tags: [ssl, web]
+      when: certbot_domains | length > 0
+
+    - role: monitoring
+      tags: [monitoring]
+
+  post_tasks:
+    - name: Verify all services are running
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      register: svc_status
+      loop:
+        - docker
+        - nginx
+        - fail2ban
+        - ufw
+        - node_exporter
+      changed_when: false
+      failed_when: false
+
+    - name: Show service status summary
+      ansible.builtin.debug:
+        msg: "{{ item.item }}: {{ item.status.ActiveState | default('unknown') }}"
+      loop: "{{ svc_status.results }}"
+      loop_control:
+        label: "{{ item.item }}"
