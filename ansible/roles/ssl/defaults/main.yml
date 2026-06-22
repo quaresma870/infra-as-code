@@ -1,3 +1,6 @@
 ---
-certbot_email: admin@example.com
-certbot_domains: []
+# 'ssl_' prefix added for ansible-lint idiom compliance (var-naming).
+# The old, unprefixed names below still work as a fallback for any
+# existing inventory that hasn't been updated to the new names yet.
+ssl_certbot_email: "{{ certbot_email | default('admin@example.com') }}"
+ssl_certbot_domains: "{{ certbot_domains | default([]) }}"

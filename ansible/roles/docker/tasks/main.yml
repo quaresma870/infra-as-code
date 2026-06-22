@@ -27,13 +27,15 @@
     dest: /etc/apt/keyrings/docker.asc
     mode: "0644"
 
+- name: Map ansible_architecture to Docker's apt repo naming
+  ansible.builtin.set_fact:
+    docker_apt_arch: "{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+
 - name: Add Docker apt repository
   ansible.builtin.apt_repository:
     repo: >
-      deb [arch={{ ansible_architecture | replace('x86_64','amd64') | replace('aarch64','arm64') }}
-      signed-by=/etc/apt/keyrings/docker.asc]
-      https://download.docker.com/linux/ubuntu
-      {{ ansible_distribution_release }} stable
+      deb [arch={{ docker_apt_arch }} signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
     filename: docker
     state: present
 

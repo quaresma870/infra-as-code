@@ -45,7 +45,7 @@ jobs:
       - name: Run ansible-lint
         run: |
           cd ansible
-          ansible-lint playbooks/ --profile=basic || true
+          ansible-lint playbooks/ --profile=basic
 
   # ── Terraform ────────────────────────────────────────────────────────────────
   terraform:
@@ -75,6 +75,15 @@ jobs:
       - name: Terraform validate — production environment
         run: |
           cd terraform/environments/production
+          terraform init -backend=false -input=false
+          terraform validate
+        env:
+          TF_VAR_hcloud_token: "dummy-for-ci-validation-only"
+          TF_VAR_ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIdummy key for CI validation"
+
+      - name: Terraform validate — staging environment
+        run: |
+          cd terraform/environments/staging
           terraform init -backend=false -input=false
           terraform validate
         env:

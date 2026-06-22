@@ -1,4 +1,8 @@
 ---
-# Override these in group_vars or host_vars
-deploy_ssh_keys: []
-swap_size_mb: 2048
+# Override these in group_vars or host_vars.
+#
+# 'common_' prefix added for ansible-lint idiom compliance (var-naming).
+# The old, unprefixed names below still work as a fallback for any
+# existing inventory that hasn't been updated to the new names yet.
+common_deploy_ssh_keys: "{{ deploy_ssh_keys | default([]) }}"
+common_swap_size_mb: "{{ swap_size_mb | default(2048) }}"

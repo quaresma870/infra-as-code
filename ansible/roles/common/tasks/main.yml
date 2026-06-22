@@ -59,8 +59,8 @@
     user: "{{ deploy_user }}"
     key: "{{ item }}"
     state: present
-  loop: "{{ deploy_ssh_keys | default([]) }}"
-  when: deploy_ssh_keys is defined
+  loop: "{{ common_deploy_ssh_keys }}"
+  when: common_deploy_ssh_keys | length > 0
 
 - name: Harden SSH configuration
   ansible.builtin.template:
@@ -73,18 +73,18 @@
   notify: Restart SSH
 
 - name: Configure swap
-  when: swap_size_mb | int > 0
+  when: common_swap_size_mb | int > 0
   block:
     - name: Check if swap file exists
       ansible.builtin.stat:
         path: /swapfile
-      register: swap_file
+      register: common_swap_file
 
     - name: Create swap file
       ansible.builtin.command:
-        cmd: fallocate -l {{ swap_size_mb }}M /swapfile
+        cmd: fallocate -l {{ common_swap_size_mb }}M /swapfile
         creates: /swapfile
-      when: not swap_file.stat.exists
+      when: not common_swap_file.stat.exists
 
     - name: Set swap file permissions
       ansible.builtin.file:
@@ -94,12 +94,12 @@
     - name: Format swap file
       ansible.builtin.command:
         cmd: mkswap /swapfile
-      when: not swap_file.stat.exists
+      when: not common_swap_file.stat.exists
 
     - name: Enable swap
       ansible.builtin.command:
         cmd: swapon /swapfile
-      when: not swap_file.stat.exists
+      when: not common_swap_file.stat.exists
 
     - name: Add swap to fstab
       ansible.builtin.lineinfile:
@@ -121,7 +121,7 @@
   ansible.builtin.apt:
     name:
       - snapd
-      - ufw   # managed by firewall role
+      - ufw # managed by firewall role
     state: absent
     purge: true
   failed_when: false
@@ -133,9 +133,9 @@
     state: present
     reload: true
   loop:
-    - { key: net.ipv4.tcp_syncookies,        value: "1" }
-    - { key: net.ipv4.conf.all.rp_filter,    value: "1" }
+    - { key: net.ipv4.tcp_syncookies, value: "1" }
+    - { key: net.ipv4.conf.all.rp_filter, value: "1" }
     - { key: net.ipv4.conf.all.accept_redirects, value: "0" }
-    - { key: net.ipv4.conf.all.send_redirects,   value: "0" }
-    - { key: kernel.dmesg_restrict,          value: "1" }
-    - { key: fs.suid_dumpable,               value: "0" }
+    - { key: net.ipv4.conf.all.send_redirects, value: "0" }
+    - { key: kernel.dmesg_restrict, value: "1" }
+    - { key: fs.suid_dumpable, value: "0" }
