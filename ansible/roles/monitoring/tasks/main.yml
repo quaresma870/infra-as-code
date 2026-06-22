@@ -12,33 +12,37 @@
 - name: Check if node_exporter is already installed
   ansible.builtin.stat:
     path: /usr/local/bin/node_exporter
-  register: node_exporter_binary
+  register: monitoring_node_exporter_binary
+
+- name: Map ansible_architecture to node_exporter's release naming
+  ansible.builtin.set_fact:
+    monitoring_arch: "{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
 
 - name: Download node_exporter
   ansible.builtin.get_url:
     url: >
-      https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/
-      node_exporter-{{ node_exporter_version }}.linux-{{ ansible_architecture | replace('x86_64','amd64') | replace('aarch64','arm64') }}.tar.gz
+      https://github.com/prometheus/node_exporter/releases/download/v{{ monitoring_node_exporter_version }}/
+      node_exporter-{{ monitoring_node_exporter_version }}.linux-{{ monitoring_arch }}.tar.gz
     dest: /tmp/node_exporter.tar.gz
     mode: "0644"
-  when: not node_exporter_binary.stat.exists
+  when: not monitoring_node_exporter_binary.stat.exists
 
 - name: Extract node_exporter
   ansible.builtin.unarchive:
     src: /tmp/node_exporter.tar.gz
     dest: /tmp
     remote_src: true
-  when: not node_exporter_binary.stat.exists
+  when: not monitoring_node_exporter_binary.stat.exists
 
 - name: Install node_exporter binary
   ansible.builtin.copy:
-    src: /tmp/node_exporter-{{ node_exporter_version }}.linux-{{ ansible_architecture | replace('x86_64','amd64') | replace('aarch64','arm64') }}/node_exporter
+    src: /tmp/node_exporter-{{ monitoring_node_exporter_version }}.linux-{{ monitoring_arch }}/node_exporter
     dest: /usr/local/bin/node_exporter
     owner: node_exporter
     group: node_exporter
     mode: "0755"
     remote_src: true
-  when: not node_exporter_binary.stat.exists
+  when: not monitoring_node_exporter_binary.stat.exists
   notify: Restart node_exporter
 
 - name: Create node_exporter systemd service
@@ -54,7 +58,7 @@
       Group=node_exporter
       Type=simple
       ExecStart=/usr/local/bin/node_exporter \
-        --web.listen-address=:{{ node_exporter_port }} \
+        --web.listen-address=:{{ monitoring_node_exporter_port }} \
         --collector.systemd \
         --collector.processes
       Restart=on-failure
@@ -68,7 +72,7 @@
 - name: Allow node_exporter port in UFW (monitoring subnet only)
   community.general.ufw:
     rule: allow
-    port: "{{ node_exporter_port | string }}"
+    port: "{{ monitoring_node_exporter_port | string }}"
     proto: tcp
     src: "{{ monitoring_subnet | default('any') }}"
     comment: "Node Exporter — Prometheus scrape"
@@ -83,9 +87,9 @@
 
 - name: Verify node_exporter is running
   ansible.builtin.uri:
-    url: http://localhost:{{ node_exporter_port }}/metrics
+    url: http://localhost:{{ monitoring_node_exporter_port }}/metrics
     status_code: 200
-  register: ne_check
+  register: monitoring_ne_check
   retries: 3
   delay: 5
   changed_when: false

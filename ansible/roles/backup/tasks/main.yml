@@ -25,6 +25,7 @@
     version: main
     update: true
   become_user: "{{ deploy_user }}"
+  become: true
   when: backup_use_compose_stacks_script | bool
 
 - name: Copy backup.sh from compose-stacks

@@ -43,7 +43,7 @@
 
     - role: ssl
       tags: [ssl, web]
-      when: certbot_domains | length > 0
+      when: (certbot_domains | default([]) | length > 0) or (ssl_certbot_domains | default([]) | length > 0)
 
     - role: monitoring
       tags: [monitoring]

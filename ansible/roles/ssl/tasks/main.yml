@@ -21,14 +21,14 @@
     certbot certonly
     --webroot
     --webroot-path /var/www/certbot
-    --email {{ certbot_email }}
+    --email {{ ssl_certbot_email }}
     --agree-tos
     --no-eff-email
     --non-interactive
-    {% for domain in certbot_domains %}-d {{ domain }} {% endfor %}
+    {% for domain in ssl_certbot_domains %}-d {{ domain }} {% endfor %}
   args:
-    creates: /etc/letsencrypt/live/{{ certbot_domains[0] }}/fullchain.pem
-  when: certbot_domains | length > 0
+    creates: /etc/letsencrypt/live/{{ ssl_certbot_domains[0] }}/fullchain.pem
+  when: ssl_certbot_domains | length > 0
   notify: Reload nginx
 
 - name: Set up certbot auto-renewal cron
@@ -43,11 +43,11 @@
 
 - name: Verify certificate exists
   ansible.builtin.stat:
-    path: /etc/letsencrypt/live/{{ certbot_domains[0] }}/fullchain.pem
-  register: cert_stat
-  when: certbot_domains | length > 0
+    path: /etc/letsencrypt/live/{{ ssl_certbot_domains[0] }}/fullchain.pem
+  register: ssl_cert_stat
+  when: ssl_certbot_domains | length > 0
 
 - name: Show certificate status
   ansible.builtin.debug:
-    msg: "Certificate for {{ certbot_domains[0] }}: {{ 'found' if cert_stat.stat.exists else 'NOT found' }}"
-  when: certbot_domains | length > 0
+    msg: "Certificate for {{ ssl_certbot_domains[0] }}: {{ 'found' if ssl_cert_stat.stat.exists else 'NOT found' }}"
+  when: ssl_certbot_domains | length > 0

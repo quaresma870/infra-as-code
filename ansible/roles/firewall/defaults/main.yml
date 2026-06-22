@@ -1,4 +1,7 @@
 ---
-ufw_default_incoming: deny
-ufw_default_outgoing: allow
-ufw_extra_rules: []
+# 'firewall_' prefix added for ansible-lint idiom compliance (var-naming).
+# The old, unprefixed names below still work as a fallback for any
+# existing inventory that hasn't been updated to the new names yet.
+firewall_default_incoming: "{{ ufw_default_incoming | default('deny') }}"
+firewall_default_outgoing: "{{ ufw_default_outgoing | default('allow') }}"
+firewall_extra_rules: "{{ ufw_extra_rules | default([]) }}"

@@ -16,7 +16,7 @@
 
   vars:
     stack: web-basic
-    version: previous      # 'previous' uses the image before current, or specify tag e.g. v1.2.2
+    version: previous # 'previous' uses the image before current, or specify tag e.g. v1.2.2
     deploy_path: "{{ deploy_home }}/stacks/{{ stack }}"
 
   tasks:
@@ -31,6 +31,7 @@
         cmd: docker compose images --format json
         chdir: "{{ deploy_path }}"
       become_user: "{{ deploy_user }}"
+      become: true
       register: current_images
       changed_when: false
 
@@ -45,6 +46,7 @@
         cmd: docker pull {{ rollback_image }}
         chdir: "{{ deploy_path }}"
       become_user: "{{ deploy_user }}"
+      become: true
       when: version != 'previous'
 
     - name: Update APP_IMAGE in .env
@@ -59,6 +61,7 @@
         cmd: docker compose up -d --no-build
         chdir: "{{ deploy_path }}"
       become_user: "{{ deploy_user }}"
+      become: true
       register: rollback_result
       changed_when: "'Started' in rollback_result.stderr or 'Recreated' in rollback_result.stderr"
 

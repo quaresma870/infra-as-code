@@ -42,6 +42,7 @@
         version: main
         update: true
       become_user: "{{ deploy_user }}"
+      become: true
 
     - name: Copy stack files to deploy path
       ansible.builtin.copy:
@@ -77,6 +78,7 @@
       ansible.builtin.command:
         cmd: docker login ghcr.io -u {{ ghcr_user }} -p {{ ghcr_token }}
       become_user: "{{ deploy_user }}"
+      become: true
       no_log: true
       when: ghcr_user is defined and ghcr_token is defined
       changed_when: false
@@ -86,6 +88,7 @@
         cmd: docker compose pull
         chdir: "{{ deploy_path }}"
       become_user: "{{ deploy_user }}"
+      become: true
       register: pull_result
       changed_when: "'Pull complete' in pull_result.stdout or 'Downloaded' in pull_result.stdout"
 
@@ -94,6 +97,7 @@
         cmd: docker compose up -d --remove-orphans
         chdir: "{{ deploy_path }}"
       become_user: "{{ deploy_user }}"
+      become: true
       register: up_result
       changed_when: "'Started' in up_result.stderr or 'Recreated' in up_result.stderr"
 
@@ -101,6 +105,7 @@
       ansible.builtin.command:
         cmd: docker image prune -f
       become_user: "{{ deploy_user }}"
+      become: true
       changed_when: false
 
     - name: Show running containers
@@ -108,6 +113,7 @@
         cmd: docker compose ps
         chdir: "{{ deploy_path }}"
       become_user: "{{ deploy_user }}"
+      become: true
       register: ps_result
       changed_when: false
 
@@ -136,4 +142,3 @@
       ansible.builtin.debug:
         msg: "Application is healthy at http://{{ ansible_host }}:{{ app_health_port | default(8000) }}/health"
       when: not health.failed
-

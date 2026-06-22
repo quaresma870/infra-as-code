@@ -37,8 +37,8 @@ common_packages:
   - ntp
 
 # Firewall defaults
-ufw_default_incoming: deny
-ufw_default_outgoing: allow
+firewall_default_incoming: deny
+firewall_default_outgoing: allow
 ufw_rules:
   - { port: "{{ ssh_port }}", proto: tcp, rule: allow, comment: "SSH" }
   - { port: 80,  proto: tcp, rule: allow, comment: "HTTP" }
@@ -53,7 +53,7 @@ fail2ban_ignoreip:
   - ::1
 
 # Swap (set 0 to disable)
-swap_size_mb: 2048
+common_swap_size_mb: 2048
 
 # Docker
 docker_edition: ce
@@ -66,10 +66,10 @@ nginx_worker_processes: auto
 nginx_worker_connections: 1024
 
 # SSL / Certbot
-certbot_email: admin@example.com    # override in host_vars
-certbot_domains: []                 # override per host
+ssl_certbot_email: admin@example.com    # override in host_vars
+ssl_certbot_domains: []                 # override per host
 certbot_renew_cron: "0 3 * * 1"   # every Monday at 03:00
 
 # Node Exporter (monitoring)
-node_exporter_version: "1.8.2"
-node_exporter_port: 9100
+monitoring_node_exporter_version: "1.8.2"
+monitoring_node_exporter_port: 9100
