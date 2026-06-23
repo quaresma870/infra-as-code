@@ -89,7 +89,23 @@ jobs:
       - name: molecule test
         run: |
           cd ansible/roles/${{ matrix.role }}
-          molecule test
+          # Retries with backoff: the first job in this matrix consistently
+          # passes, subsequent ones consistently fail in the exact same
+          # way, even with max-parallel: 1 (so not concurrency) -- pattern
+          # matches Docker Hub's anonymous-pull rate limit being exhausted
+          # by sequential pulls of the same (large) geerlingguy image
+          # within a short window, confirmed by reproducing this exact
+          # failure pattern deterministically across multiple identical
+          # re-runs before concluding it wasn't a config bug in this role.
+          for attempt in 1 2 3; do
+            echo "molecule test attempt $attempt/3"
+            if molecule test; then
+              exit 0
+            fi
+            echo "Attempt $attempt failed, waiting before retry..."
+            sleep 60
+          done
+          exit 1
         env:
           PY_COLORS: "1"
           ANSIBLE_FORCE_COLOR: "1"
@@ -145,4 +161,3 @@ jobs:
         env:
           TF_VAR_hcloud_token: "dummy-for-ci-validation-only"
           TF_VAR_ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIdummy key for CI validation"
-# retry to check determinism vs flakiness
