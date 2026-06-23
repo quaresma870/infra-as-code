@@ -26,9 +26,3 @@ provisioner:
       instance:
         docker_users:
           - testuser
-
-scenario:
-  test_sequence:
-    - destroy
-    - create
-    - converge
