@@ -81,10 +81,10 @@ jobs:
       - name: molecule test
         run: |
           cd ansible/roles/${{ matrix.role }}
-          molecule test
+          molecule test 2>&1 | tee /tmp/molecule_output_${{ matrix.role }}.txt
         env:
-          PY_COLORS: "1"
-          ANSIBLE_FORCE_COLOR: "1"
+          PY_COLORS: "0"
+          ANSIBLE_FORCE_COLOR: "0"
           # ansible/ansible.cfg's roles_path is only auto-discovered when
           # ansible runs FROM ansible/ itself — it does not search parent
           # directories, and `cd ansible/roles/${{ matrix.role }}` above
@@ -94,6 +94,19 @@ jobs:
           # role-path auto-detection (nested-in-a-role-directory) actually
           # kicking in or not.
           ANSIBLE_ROLES_PATH: "${{ github.workspace }}/ansible/roles"
+
+      - name: TEMP DIAG — post output as PR comment on failure
+        if: failure() && github.event_name == 'pull_request'
+        run: |
+          {
+            echo "### Molecule (${{ matrix.role }}) diagnostic output (tail)"
+            echo '```'
+            tail -c 60000 /tmp/molecule_output_${{ matrix.role }}.txt
+            echo '```'
+          } > /tmp/comment_body.md
+          gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/comment_body.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ── Terraform ────────────────────────────────────────────────────────────────
   terraform:
