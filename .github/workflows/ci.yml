@@ -58,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        role: [firewall]  # TEMP: reduced for bisection, restore [firewall, docker, ssl] before merging
+        role: [firewall, docker, ssl]
     steps:
       - uses: actions/checkout@v6
 
