@@ -1,0 +1,81 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Check docker CLI version
+      ansible.builtin.command: docker --version
+      register: docker_check_version
+      changed_when: false
+
+    - name: Check docker compose plugin version
+      ansible.builtin.command: docker compose version
+      register: docker_check_compose_version
+      changed_when: false
+
+    - name: Check docker daemon is actually running and responsive
+      ansible.builtin.command: docker info
+      register: docker_check_info
+      changed_when: false
+      # Not just "is the binary on PATH" — this fails if the daemon isn't
+      # actually up and answering, which is the regression this exists to
+      # catch (e.g. a systemd unit that's enabled but never actually started).
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+      register: docker_check_service_facts
+
+    - name: Check testuser was added to the docker group
+      ansible.builtin.command: id -nG testuser
+      register: docker_check_testuser_groups
+      changed_when: false
+
+    - name: Check daemon.json was written with expected settings
+      ansible.builtin.slurp:
+        src: /etc/docker/daemon.json
+      register: docker_check_daemon_json_raw
+
+    - name: Assert everything is correct
+      ansible.builtin.assert:
+        that:
+          - "'Docker version' in docker_check_version.stdout"
+          - docker_check_info.rc == 0
+          - "'docker' in docker_check_testuser_groups.stdout.split()"
+          - "(docker_check_daemon_json_raw.content | b64decode | from_json).get('live-restore') == true"
+          - "(docker_check_daemon_json_raw.content | b64decode | from_json).get('userland-proxy') == false"
+        fail_msg: "One or more docker role assertions failed — see the individual task results above for which."
+
+    - name: Assert docker.service is active
+      ansible.builtin.assert:
+        that:
+          - "ansible_facts.services['docker.service'].state == 'running'"
+        fail_msg: "docker.service is not running"
+
+    - name: Assert containerd.service is active
+      ansible.builtin.assert:
+        that:
+          - "ansible_facts.services['containerd.service'].state == 'running'"
+        fail_msg: "containerd.service is not running"
+
+    - name: Smoke test — actually run a real container, not just check the binary
+      ansible.builtin.command: docker run --rm hello-world
+      register: docker_check_hello_world
+      changed_when: false
+      # This is the real end-to-end proof the daemon works, not just that it
+      # responds to `docker info`. Allowed to be a soft failure (warning
+      # rather than hard assert) since it depends on the test environment
+      # actually being able to pull from Docker Hub, which `docker info`
+      # above does not — network egress in some CI environments may block
+      # this specifically while everything else about the role is correct.
+      failed_when: false
+
+    - name: Report hello-world smoke test result
+      ansible.builtin.debug:
+        msg: >-
+          {{ 'hello-world container ran successfully end-to-end.'
+             if docker_check_hello_world.rc == 0
+             else 'hello-world pull/run failed (rc=' + (docker_check_hello_world.rc | string) +
+                  ') — likely a network/registry-access limitation of this
+                  test environment, not necessarily a role regression. Every
+                  other assertion in this scenario already passed.' }}

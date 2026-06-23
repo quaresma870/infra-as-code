@@ -1,0 +1,35 @@
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ../../../../molecule-requirements.yml
+
+driver:
+  name: docker
+
+platforms:
+  - name: instance
+    image: "geerlingguy/docker-${MOLECULE_DISTRO:-ubuntu2204}-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+
+provisioner:
+  name: ansible
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+  inventory:
+    host_vars:
+      instance:
+        # Deliberately empty — there's no real domain to issue a real
+        # Let's Encrypt certificate against in CI, and the role correctly
+        # skips the certbot certonly step entirely when this is empty
+        # (when: ssl_certbot_domains | length > 0). This scenario verifies
+        # the package/cron/directory setup that happens regardless of
+        # whether a real cert is ever issued.
+        ssl_certbot_domains: []
+        ssl_certbot_email: "test@example.com"

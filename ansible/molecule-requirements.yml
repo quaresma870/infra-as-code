@@ -1,0 +1,10 @@
+---
+# Shared across every role's molecule/default/molecule.yml — referenced via
+# a relative path rather than duplicated per-scenario. These are the
+# collections the ROLES under test actually need at runtime (community.general
+# for ufw, etc.) — not to be confused with what `pip install molecule-plugins`
+# needs for its own docker driver internals, which is a separate concern
+# handled by pip/requirements.txt instead.
+collections:
+  - name: community.general
+  - name: ansible.posix
