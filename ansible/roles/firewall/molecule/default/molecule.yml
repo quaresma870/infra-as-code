@@ -38,11 +38,3 @@ provisioner:
           - { port: 80, proto: tcp, rule: allow, comment: "HTTP" }
         firewall_extra_rules:
           - { port: 8080, proto: tcp, comment: "test extra rule" }
-
-scenario:
-  test_sequence:
-    - destroy
-    - create
-    - prepare
-    - converge
-    - verify
