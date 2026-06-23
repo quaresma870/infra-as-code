@@ -145,3 +145,4 @@ jobs:
         env:
           TF_VAR_hcloud_token: "dummy-for-ci-validation-only"
           TF_VAR_ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIdummy key for CI validation"
+# retry to check determinism vs flakiness
