@@ -4,67 +4,6 @@
   become: true
   gather_facts: true
   tasks:
-    # TEMP diagnostic: confirmed deb822_repository itself works fine in
-    # isolation (previous run) -- now testing the docker-ce install +
-    # service-start steps specifically, which is the next most likely
-    # candidate (starting a nested dockerd inside an already-containerized
-    # environment is known to have its own friction, separate from just
-    # adding the apt repo).
-    - name: DIAG - install deps
-      ansible.builtin.apt:
-        name:
-          - apt-transport-https
-          - ca-certificates
-          - curl
-          - gnupg
-          - lsb-release
-          - python3-debian
-        state: present
-
-    - name: DIAG - download docker gpg key
-      ansible.builtin.get_url:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        dest: /etc/apt/keyrings/docker.asc
-        mode: "0644"
-
-    - name: DIAG - map arch
-      ansible.builtin.set_fact:
-        docker_diag_arch: "{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
-
-    - name: DIAG - add docker apt repo via deb822_repository
-      ansible.builtin.deb822_repository:
+    - name: Include docker role
+      ansible.builtin.include_role:
         name: docker
-        types: deb
-        uris: https://download.docker.com/linux/ubuntu
-        suites: "{{ ansible_distribution_release }}"
-        components: stable
-        architectures: "{{ docker_diag_arch }}"
-        signed_by: /etc/apt/keyrings/docker.asc
-        state: present
-
-    - name: DIAG - install docker-ce
-      ansible.builtin.apt:
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-          - docker-buildx-plugin
-          - docker-compose-plugin
-        state: present
-        update_cache: true
-      register: docker_diag_install
-
-    - name: DIAG - show install result
-      ansible.builtin.debug:
-        var: docker_diag_install
-
-    - name: DIAG - enable and start docker
-      ansible.builtin.systemd:
-        name: docker
-        state: started
-        enabled: true
-      register: docker_diag_service
-
-    - name: DIAG - show service result
-      ansible.builtin.debug:
-        var: docker_diag_service
