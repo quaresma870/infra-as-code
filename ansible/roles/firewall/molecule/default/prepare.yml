@@ -1,0 +1,33 @@
+---
+# Runs before converge. UFW's init script tries to modprobe several
+# optional netfilter conntrack helper modules (nf_conntrack_ftp,
+# nf_nat_ftp, etc.) — these can't be loaded from inside a container even
+# when privileged, since modprobe needs the module already present on the
+# HOST kernel, not just container capabilities. This is a well-documented
+# UFW-in-containers friction point, unrelated to the firewall role itself
+# (which behaves identically on a real VM/bare metal where these modules
+# are normally available) — accommodated here in the test environment,
+# not worked around in the role.
+#
+# Installs ufw itself here (rather than relying on the role's own install
+# task to run first) specifically so /etc/default/ufw already exists and
+# already has the override in place *before* the role's later `ufw state:
+# reset/enabled` tasks ever run — the role's own `apt: name: ufw` task
+# remains correct and unchanged; installing it again there is just a
+# normal idempotent no-op.
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install ufw so /etc/default/ufw exists to configure
+      ansible.builtin.apt:
+        name: ufw
+        state: present
+        update_cache: true
+
+    - name: Disable UFW's optional conntrack helper modules for this container test
+      ansible.builtin.lineinfile:
+        path: /etc/default/ufw
+        regexp: '^IPT_MODULES='
+        line: 'IPT_MODULES=""'

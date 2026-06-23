@@ -24,6 +24,7 @@ platforms:
 provisioner:
   name: ansible
   playbooks:
+    prepare: prepare.yml
     converge: converge.yml
     verify: verify.yml
   inventory:
@@ -42,4 +43,5 @@ scenario:
   test_sequence:
     - destroy
     - create
+    - prepare
     - converge
