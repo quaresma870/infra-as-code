@@ -57,6 +57,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      # Sequential, not parallel: running all 3 simultaneously caused
+      # intermittent fast failures that individual/sequential runs of the
+      # exact same jobs did not — consistent with concurrent anonymous
+      # Docker Hub pulls of the same geerlingguy image hitting a rate
+      # limit, confirmed by testing each role alone (always passes) vs.
+      # all three together (docker/ssl failed, firewall did not, no
+      # consistent pattern pointing at any one role's own config).
+      max-parallel: 1
       matrix:
         role: [firewall, docker, ssl]
     steps:
