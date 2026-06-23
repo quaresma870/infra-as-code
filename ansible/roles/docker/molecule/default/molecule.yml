@@ -1,8 +1,8 @@
 ---
-dependency:
-  name: galaxy
-  options:
-    requirements-file: ../../../../molecule-requirements.yml
+# Collections (community.general, ansible.posix, community.docker) are
+# installed explicitly by CI before invoking molecule -- no dependency:
+# step needed here, which also avoids any ambiguity about what
+# requirements-file paths are resolved relative to.
 
 driver:
   name: docker
