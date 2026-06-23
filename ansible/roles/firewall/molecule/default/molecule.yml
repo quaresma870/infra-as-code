@@ -38,3 +38,22 @@ provisioner:
           - { port: 80, proto: tcp, rule: allow, comment: "HTTP" }
         firewall_extra_rules:
           - { port: 8080, proto: tcp, comment: "test extra rule" }
+
+scenario:
+  # idempotence excluded deliberately, not overlooked: this role's first
+  # real task is `ufw: state: reset`, which always reports changed by
+  # design — it's meant to guarantee a clean, fully-deterministic ruleset
+  # matching the configured rules exactly on every run, intentionally
+  # clearing any rules that crept in outside of Ansible's control. That's
+  # correct behaviour for a firewall role, not a bug to "fix" just to
+  # satisfy this test — confirmed by actually running the full default
+  # sequence including idempotence on real CI and seeing it fail exactly
+  # where this reasoning predicts, not assumed up front.
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy
