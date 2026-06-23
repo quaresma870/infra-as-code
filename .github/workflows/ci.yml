@@ -85,6 +85,15 @@ jobs:
         env:
           PY_COLORS: "1"
           ANSIBLE_FORCE_COLOR: "1"
+          # ansible/ansible.cfg's roles_path is only auto-discovered when
+          # ansible runs FROM ansible/ itself — it does not search parent
+          # directories, and `cd ansible/roles/${{ matrix.role }}` above
+          # means ansible.cfg is never found at all from here. Set this
+          # explicitly so `include_role: name: ${{ matrix.role }}` in
+          # converge.yml resolves correctly regardless of Molecule's own
+          # role-path auto-detection (nested-in-a-role-directory) actually
+          # kicking in or not.
+          ANSIBLE_ROLES_PATH: "${{ github.workspace }}/ansible/roles"
 
   # ── Terraform ────────────────────────────────────────────────────────────────
   terraform:
