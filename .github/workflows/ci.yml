@@ -103,11 +103,20 @@ jobs:
         # aren't set, this step is skipped and Molecule runs exactly as it
         # did before, just with the same risk of occasionally hitting the
         # anonymous limit on a busy day.
-        if: ${{ secrets.DOCKERHUB_USERNAME != '' }}
+        # secrets are deliberately NOT referenced directly in this if: —
+        # GitHub Actions does not support the secrets context in if:
+        # conditions at all ("Unrecognized named-value: 'secrets'", a
+        # static validation failure at workflow-parse time, confirmed by
+        # actually hitting this exact error before fixing it). The env:
+        # indirection below is the documented workaround: env: CAN
+        # reference secrets.*, and if: can then check env.* instead.
+        if: ${{ env.DOCKERHUB_USERNAME != '' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
       - name: molecule test
         run: |
