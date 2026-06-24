@@ -129,12 +129,14 @@ infra-as-code/
 │   │       └── hosts.yml
 │   ├── roles/
 │   │   ├── common/          # packages, user, SSH, sysctl, swap
-│   │   ├── firewall/        # UFW
+│   │   ├── firewall/        # UFW — has Molecule tests (roles/firewall/molecule/)
 │   │   ├── fail2ban/        # fail2ban + nginx jails
-│   │   ├── docker/          # Docker CE + Compose
+│   │   ├── docker/          # Docker CE + Compose — has Molecule tests
+│   │   ├── haproxy/         # HAProxy load balancer
 │   │   ├── nginx/           # nginx + vhost templates
-│   │   ├── ssl/             # Certbot + Let's Encrypt
-│   │   └── monitoring/      # Node Exporter
+│   │   ├── ssl/             # Certbot + Let's Encrypt — has Molecule tests
+│   │   ├── monitoring/      # Node Exporter
+│   │   └── backup/          # automated cron backups
 │   └── playbooks/
 │       ├── bootstrap.yml    # first run as root
 │       ├── site.yml         # full setup
@@ -143,9 +145,10 @@ infra-as-code/
 │   ├── modules/
 │   │   └── vps/             # Hetzner VPS + firewall + SSH key
 │   └── environments/
-│       └── production/      # main.tf, variables.tf, outputs.tf
+│       ├── production/      # main.tf, variables.tf, outputs.tf
+│       └── staging/
 ├── .github/workflows/
-│   └── ci.yml               # Ansible lint + Terraform fmt/validate
+│   └── ci.yml               # lint + Molecule + Terraform fmt/validate
 └── README.md
 ```
 
@@ -153,9 +156,22 @@ infra-as-code/
 
 ## CI
 
-On every push: Ansible YAML lint → playbook syntax check → Terraform fmt → Terraform validate.
+On every push: YAML lint → playbook syntax check → ansible-lint (`production`
+profile) → **Molecule tests** (firewall/docker/ssl roles, real Docker
+containers, real assertions — not just "did it run without erroring") →
+Terraform fmt → Terraform validate.
 
-No real API calls are made in CI — Terraform uses dummy credentials for syntax validation only.
+No real API calls are made in CI — Terraform uses dummy credentials for
+syntax validation only. Molecule tests run for real, against real (containerized)
+hosts.
+
+**Optional repo secrets** — `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`: if set,
+the Molecule job logs in to Docker Hub before pulling test images, raising
+the pull rate limit well above the anonymous tier. Not required — without
+them, Molecule still runs exactly the same way, just with a (real, observed
+while building this) risk of occasionally hitting Docker Hub's anonymous
+rate limit on a busy day. A free Docker Hub account + a read-only access
+token is enough; no paid plan needed.
 
 ---
 

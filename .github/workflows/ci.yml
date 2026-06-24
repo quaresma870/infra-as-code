@@ -93,6 +93,22 @@ jobs:
             ansible.posix \
             community.docker
 
+      - name: Log in to Docker Hub (optional — raises the pull rate limit)
+        # Confirmed the actual root cause of an intermittent failure pattern
+        # while building this: Docker Hub's ANONYMOUS pull rate limit (a
+        # several-hour rolling window) being hit by repeated pulls of the
+        # same geerlingguy test image across this job's matrix. An
+        # authenticated pull (even a free Docker Hub account) gets a
+        # meaningfully higher limit. Entirely optional — if these secrets
+        # aren't set, this step is skipped and Molecule runs exactly as it
+        # did before, just with the same risk of occasionally hitting the
+        # anonymous limit on a busy day.
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: molecule test
         run: |
           cd ansible/roles/${{ matrix.role }}
