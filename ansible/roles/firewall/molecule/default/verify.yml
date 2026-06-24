@@ -1,0 +1,46 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Get ufw status
+      ansible.builtin.command: ufw status verbose
+      register: firewall_check_ufw_status
+      changed_when: false
+
+    - name: Assert ufw is active
+      ansible.builtin.assert:
+        that:
+          - "'Status: active' in firewall_check_ufw_status.stdout"
+        fail_msg: "ufw is not active — converge did not actually enable it"
+
+    - name: Assert default incoming policy is deny
+      ansible.builtin.assert:
+        that:
+          - "'Default: deny (incoming)' in firewall_check_ufw_status.stdout"
+        fail_msg: "Default incoming policy is not deny as configured"
+
+    - name: Assert SSH rule from ufw_rules was applied
+      ansible.builtin.assert:
+        that:
+          - "'22/tcp' in firewall_check_ufw_status.stdout"
+        fail_msg: "Port 22/tcp rule from ufw_rules was not applied"
+
+    - name: Assert HTTP rule from ufw_rules was applied
+      ansible.builtin.assert:
+        that:
+          - "'80/tcp' in firewall_check_ufw_status.stdout"
+        fail_msg: "Port 80/tcp rule from ufw_rules was not applied"
+
+    - name: Assert extra rule from firewall_extra_rules was applied
+      ansible.builtin.assert:
+        that:
+          - "'8080/tcp' in firewall_check_ufw_status.stdout"
+        fail_msg: "Port 8080/tcp from firewall_extra_rules was not applied — this is exactly the kind of regression this test exists to catch"
+
+    - name: Assert logging is enabled
+      ansible.builtin.assert:
+        that:
+          - "'Logging: on' in firewall_check_ufw_status.stdout"
+        fail_msg: "ufw logging was not enabled"

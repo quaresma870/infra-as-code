@@ -1,0 +1,54 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Check certbot is installed
+      ansible.builtin.command: certbot --version
+      register: ssl_check_certbot_version
+      changed_when: false
+
+    - name: Check the ACME webroot directory exists with correct ownership
+      ansible.builtin.stat:
+        path: /var/www/certbot
+      register: ssl_check_webroot_stat
+
+    - name: Check the certbot renewal cron job was registered
+      ansible.builtin.command: crontab -l -u root
+      register: ssl_check_root_crontab
+      changed_when: false
+      # If this fails outright (rather than just not containing the
+      # expected line), it likely means `cron`/`crontab` isn't installed
+      # on this base image at all — which would mean the role implicitly
+      # depends on cron being pre-installed by something else, with no
+      # explicit dependency of its own. Surfaced here rather than assumed.
+      failed_when: false
+
+    - name: Assert everything is correct
+      ansible.builtin.assert:
+        that:
+          - "'certbot' in ssl_check_certbot_version.stdout.lower()"
+          - ssl_check_webroot_stat.stat.exists
+          - ssl_check_webroot_stat.stat.isdir
+          - ssl_check_webroot_stat.stat.pw_name == 'www-data'
+        fail_msg: "certbot install or webroot directory assertions failed."
+
+    - name: Assert the cron job itself is correct (only if crontab is available at all)
+      ansible.builtin.assert:
+        that:
+          - "'certbot renew' in ssl_check_root_crontab.stdout"
+          - "'certbot-renew' in ssl_check_root_crontab.stdout"
+        fail_msg: "certbot-renew cron job was not found in root's crontab."
+      when: ssl_check_root_crontab.rc == 0
+
+    - name: Flag if crontab itself isn't available on this base image
+      ansible.builtin.debug:
+        msg: >-
+          crontab command itself failed (rc={{ ssl_check_root_crontab.rc }}) — this
+          base image likely doesn't have cron pre-installed, meaning the
+          ssl role's cron task implicitly depends on something else having
+          installed it first. Worth a follow-up: either this role should
+          install the cron package itself, or this needs to be documented
+          as a prerequisite.
+      when: ssl_check_root_crontab.rc != 0
