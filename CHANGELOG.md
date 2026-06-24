@@ -3,6 +3,40 @@
 All notable changes to this project are documented here. See the
 [README](README.md) for current features and usage.
 
+### v1.1.0
+- feat: **Molecule tests** for the firewall, docker, and ssl roles — the three judged most likely
+  to regress silently. Real converge (applies the actual role) and verify (real assertions: ufw
+  status output, a live docker daemon actually responding plus a real `docker run hello-world`,
+  certbot/cron setup) against real Docker containers via `molecule test` in CI, not just "did the
+  playbook run without erroring." Found and worked through several genuinely non-obvious things
+  while building this — UFW's init script trying to modprobe conntrack helper modules that can't
+  load inside a container even when privileged (worked around with a documented `prepare.yml`,
+  not baked into the role itself), `firewall`'s deliberate non-idempotence (`ufw: state: reset`
+  always reports changed by design, confirmed by actually running idempotence and watching it fail
+  exactly where that reasoning predicts before excluding it), and a confusing pattern where
+  docker/ssl passed individually but failed as part of the full matrix — eventually traced to
+  Docker Hub's anonymous-pull rate limit (a multi-hour window) rather than anything about this
+  repo's config, after ruling out concurrency and config bugs first. Added optional
+  `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` repo secrets support to raise that ceiling for anyone who
+  wants it; not required.
+- fix: **migrated the Docker role from deprecated `apt_repository` to `deb822_repository`** —
+  flagged in an earlier review, scheduled for removal in ansible-core 2.25. Verified the role's
+  apt-repo-and-install logic still works correctly via the new Molecule docker scenario, not just
+  via `--syntax-check`.
+- feat: **`scripts/sync-inventory-from-terraform.py`** — automates what was previously a fully
+  manual step (copy Terraform's `ansible_inventory` output, paste into `hosts.yml` by hand).
+  Updates only `ansible_host`/`ansible_port` for hosts that already exist in the static inventory,
+  matched by name — deliberately not a full regeneration, since production's `hosts.yml` has a
+  `monitoring` group with no Terraform module behind it at all, and staging overrides fail2ban
+  settings at the group level; a from-scratch rewrite would silently destroy both. Also
+  deliberately doesn't add brand-new hosts on its own, so a typo'd or renamed Terraform output
+  can't silently inject an unreviewed host. Couldn't test against a real `terraform apply`
+  anywhere (these provision real, billed cloud servers) — verified the actual logic end-to-end
+  against a realistic mocked `terraform output -json` payload instead, with 12 new tests.
+- chore: while documenting all of the above, fixed the README's CI section (didn't mention
+  ansible-lint or any role testing at all) and the project structure tree (missing the `backup`
+  and `haproxy` roles entirely, and the staging Terraform environment).
+
 ### v1.0.4
 - fix: **`ansible-lint playbooks/ --profile=basic || true` in CI meant lint could never fail the
   build**, regardless of how many violations existed. Running it without the `|| true` revealed
