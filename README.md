@@ -32,7 +32,22 @@ terraform plan
 terraform apply
 ```
 
-Note the output `web01_ip` — add it to `ansible/inventory/production/hosts.yml`.
+Sync the new server's IP into the Ansible inventory automatically:
+
+```bash
+cd ../../..   # back to repo root
+pip install -r requirements.txt   # pyyaml, if not already installed
+python3 scripts/sync-inventory-from-terraform.py production
+```
+
+This updates `ansible_host`/`ansible_port` for hosts that already exist in
+`ansible/inventory/production/hosts.yml`, matching by name against
+Terraform's `ansible_inventory` output — everything else in that file
+(groups, `server_name`, custom vars) is left exactly as you wrote it. It
+deliberately does **not** add brand-new hosts on its own; add a new host to
+`hosts.yml` once by hand the usual way, and future syncs will keep its IP
+current. (Prefer the old way? Terraform's `ansible_inventory` output is
+still there — `terraform output ansible_inventory` and paste it in yourself.)
 
 ### 2. Bootstrap (first run as root)
 
@@ -147,6 +162,10 @@ infra-as-code/
 │   └── environments/
 │       ├── production/      # main.tf, variables.tf, outputs.tf
 │       └── staging/
+├── scripts/
+│   └── sync-inventory-from-terraform.py   # terraform output -> hosts.yml, see Quick start
+├── tests/
+│   └── test_sync_inventory_from_terraform.py
 ├── .github/workflows/
 │   └── ci.yml               # lint + Molecule + Terraform fmt/validate
 └── README.md
@@ -156,10 +175,11 @@ infra-as-code/
 
 ## CI
 
-On every push: YAML lint → playbook syntax check → ansible-lint (`production`
-profile) → **Molecule tests** (firewall/docker/ssl roles, real Docker
-containers, real assertions — not just "did it run without erroring") →
-Terraform fmt → Terraform validate.
+On every push: **pytest** (`scripts/sync-inventory-from-terraform.py`) → YAML
+lint → playbook syntax check → ansible-lint (`production` profile) →
+**Molecule tests** (firewall/docker/ssl roles, real Docker containers, real
+assertions — not just "did it run without erroring") → Terraform fmt →
+Terraform validate.
 
 No real API calls are made in CI — Terraform uses dummy credentials for
 syntax validation only. Molecule tests run for real, against real (containerized)
