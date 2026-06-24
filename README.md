@@ -32,7 +32,22 @@ terraform plan
 terraform apply
 ```
 
-Note the output `web01_ip` — add it to `ansible/inventory/production/hosts.yml`.
+Sync the new server's IP into the Ansible inventory automatically:
+
+```bash
+cd ../../..   # back to repo root
+pip install -r requirements.txt   # pyyaml, if not already installed
+python3 scripts/sync-inventory-from-terraform.py production
+```
+
+This updates `ansible_host`/`ansible_port` for hosts that already exist in
+`ansible/inventory/production/hosts.yml`, matching by name against
+Terraform's `ansible_inventory` output — everything else in that file
+(groups, `server_name`, custom vars) is left exactly as you wrote it. It
+deliberately does **not** add brand-new hosts on its own; add a new host to
+`hosts.yml` once by hand the usual way, and future syncs will keep its IP
+current. (Prefer the old way? Terraform's `ansible_inventory` output is
+still there — `terraform output ansible_inventory` and paste it in yourself.)
 
 ### 2. Bootstrap (first run as root)
 
@@ -129,12 +144,14 @@ infra-as-code/
 │   │       └── hosts.yml
 │   ├── roles/
 │   │   ├── common/          # packages, user, SSH, sysctl, swap
-│   │   ├── firewall/        # UFW
+│   │   ├── firewall/        # UFW — has Molecule tests (roles/firewall/molecule/)
 │   │   ├── fail2ban/        # fail2ban + nginx jails
-│   │   ├── docker/          # Docker CE + Compose
+│   │   ├── docker/          # Docker CE + Compose — has Molecule tests
+│   │   ├── haproxy/         # HAProxy load balancer
 │   │   ├── nginx/           # nginx + vhost templates
-│   │   ├── ssl/             # Certbot + Let's Encrypt
-│   │   └── monitoring/      # Node Exporter
+│   │   ├── ssl/             # Certbot + Let's Encrypt — has Molecule tests
+│   │   ├── monitoring/      # Node Exporter
+│   │   └── backup/          # automated cron backups
 │   └── playbooks/
 │       ├── bootstrap.yml    # first run as root
 │       ├── site.yml         # full setup
@@ -143,9 +160,14 @@ infra-as-code/
 │   ├── modules/
 │   │   └── vps/             # Hetzner VPS + firewall + SSH key
 │   └── environments/
-│       └── production/      # main.tf, variables.tf, outputs.tf
+│       ├── production/      # main.tf, variables.tf, outputs.tf
+│       └── staging/
+├── scripts/
+│   └── sync-inventory-from-terraform.py   # terraform output -> hosts.yml, see Quick start
+├── tests/
+│   └── test_sync_inventory_from_terraform.py
 ├── .github/workflows/
-│   └── ci.yml               # Ansible lint + Terraform fmt/validate
+│   └── ci.yml               # lint + Molecule + Terraform fmt/validate
 └── README.md
 ```
 
@@ -153,9 +175,23 @@ infra-as-code/
 
 ## CI
 
-On every push: Ansible YAML lint → playbook syntax check → Terraform fmt → Terraform validate.
+On every push: **pytest** (`scripts/sync-inventory-from-terraform.py`) → YAML
+lint → playbook syntax check → ansible-lint (`production` profile) →
+**Molecule tests** (firewall/docker/ssl roles, real Docker containers, real
+assertions — not just "did it run without erroring") → Terraform fmt →
+Terraform validate.
 
-No real API calls are made in CI — Terraform uses dummy credentials for syntax validation only.
+No real API calls are made in CI — Terraform uses dummy credentials for
+syntax validation only. Molecule tests run for real, against real (containerized)
+hosts.
+
+**Optional repo secrets** — `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`: if set,
+the Molecule job logs in to Docker Hub before pulling test images, raising
+the pull rate limit well above the anonymous tier. Not required — without
+them, Molecule still runs exactly the same way, just with a (real, observed
+while building this) risk of occasionally hitting Docker Hub's anonymous
+rate limit on a busy day. A free Docker Hub account + a read-only access
+token is enough; no paid plan needed.
 
 ---
 

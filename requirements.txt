@@ -6,6 +6,15 @@ ansible>=10.0.0
 ansible-lint>=24.9.0
 yamllint>=1.35.0
 
+# Molecule — role testing (see roles/*/molecule/default/)
+molecule>=25.0.0
+molecule-plugins[docker]>=23.0.0
+docker>=7.0.0
+
+# scripts/sync-inventory-from-terraform.py + its tests
+pyyaml>=6.0.0
+pytest>=8.0.0
+
 # Required Ansible collections (installed via ansible-galaxy in CI)
 # community.general
 # ansible.posix

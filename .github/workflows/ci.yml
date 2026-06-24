@@ -7,6 +7,20 @@ on:
     branches: [main]
 
 jobs:
+  # ── Python script tests ─────────────────────────────────────────────────────
+  scripts-test:
+    name: Test scripts/sync-inventory-from-terraform.py
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v
+
   # ── Ansible lint ─────────────────────────────────────────────────────────────
   ansible-lint:
     name: Ansible Lint
@@ -46,6 +60,94 @@ jobs:
         run: |
           cd ansible
           ansible-lint playbooks/ --profile=basic
+          # playbooks/ doesn't transitively pull in roles/*/molecule/ the
+          # way it does each role's tasks/defaults/etc, so this needs its
+          # own explicit invocation to actually get linted in CI.
+          ansible-lint roles/*/molecule --profile=basic
+
+  # ── Molecule (role testing) ─────────────────────────────────────────────────
+  molecule:
+    name: Molecule (${{ matrix.role }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Sequential, not parallel. Investigated a confusing pattern at length
+      # while building this: the first job in matrix order always passed,
+      # later ones consistently failed the same way — reproducible across
+      # several identical re-runs minutes apart, which initially argued
+      # against simple rate-limiting (a 60s in-job retry never helped).
+      # It only started passing consistently again after several hours had
+      # passed since the failing runs, which fits Docker Hub's anonymous-pull
+      # rate limit (a several-hour rolling window) far better than anything
+      # about this repo's own config — each role's own scenario individually
+      # confirmed correct via its own focused test before reaching this
+      # conclusion, not assumed. max-parallel: 1 is kept as a permanent,
+      # cheap safeguard against the simpler concurrent-pull version of the
+      # same underlying issue, even though it wasn't sufficient on its own
+      # to explain everything seen here.
+      max-parallel: 1
+      matrix:
+        role: [firewall, docker, ssl]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install Ansible, Molecule, and the Docker driver
+        run: pip install -r requirements.txt
+
+      - name: Install required Ansible collections
+        run: |
+          ansible-galaxy collection install \
+            community.general \
+            ansible.posix \
+            community.docker
+
+      - name: Log in to Docker Hub (optional — raises the pull rate limit)
+        # Confirmed the actual root cause of an intermittent failure pattern
+        # while building this: Docker Hub's ANONYMOUS pull rate limit (a
+        # several-hour rolling window) being hit by repeated pulls of the
+        # same geerlingguy test image across this job's matrix. An
+        # authenticated pull (even a free Docker Hub account) gets a
+        # meaningfully higher limit. Entirely optional — if these secrets
+        # aren't set, this step is skipped and Molecule runs exactly as it
+        # did before, just with the same risk of occasionally hitting the
+        # anonymous limit on a busy day.
+        # secrets are deliberately NOT referenced directly in this if: —
+        # GitHub Actions does not support the secrets context in if:
+        # conditions at all ("Unrecognized named-value: 'secrets'", a
+        # static validation failure at workflow-parse time, confirmed by
+        # actually hitting this exact error before fixing it). The env:
+        # indirection below is the documented workaround: env: CAN
+        # reference secrets.*, and if: can then check env.* instead.
+        if: ${{ env.DOCKERHUB_USERNAME != '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+
+      - name: molecule test
+        run: |
+          cd ansible/roles/${{ matrix.role }}
+          molecule test
+        env:
+          PY_COLORS: "1"
+          ANSIBLE_FORCE_COLOR: "1"
+          # ansible/ansible.cfg's roles_path is only auto-discovered when
+          # ansible runs FROM ansible/ itself — it does not search parent
+          # directories, and `cd ansible/roles/${{ matrix.role }}` above
+          # means ansible.cfg is never found at all from here. Set this
+          # explicitly so `include_role: name: ${{ matrix.role }}` in
+          # converge.yml resolves correctly regardless of Molecule's own
+          # role-path auto-detection (nested-in-a-role-directory) actually
+          # kicking in or not.
+          ANSIBLE_ROLES_PATH: "${{ github.workspace }}/ansible/roles"
 
   # ── Terraform ────────────────────────────────────────────────────────────────
   terraform:
