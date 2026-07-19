@@ -108,6 +108,15 @@ jobs:
             community.docker
 
       - name: Log in to Docker Hub (optional — raises the pull rate limit)
+        # NOTE, confirmed via the GitHub API (repos/.../actions/secrets)
+        # while auditing this repo: DOCKERHUB_USERNAME and DOCKERHUB_TOKEN
+        # are NOT currently configured for this repository, meaning this
+        # step is a no-op every run right now and Molecule is still
+        # pulling images fully anonymously -- the exact original risk
+        # this was built to mitigate is still live, not actually reduced,
+        # until those two repo secrets are added (Settings -> Secrets and
+        # variables -> Actions -> New repository secret; a free Docker
+        # Hub account is enough to raise the anonymous limit).
         # Confirmed the actual root cause of an intermittent failure pattern
         # while building this: Docker Hub's ANONYMOUS pull rate limit (a
         # several-hour rolling window) being hit by repeated pulls of the
